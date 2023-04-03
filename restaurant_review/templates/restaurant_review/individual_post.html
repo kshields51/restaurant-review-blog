@@ -1,0 +1,10 @@
+{% load static %}
+
+<h1> {{ latest_post.title }} </h1>
+
+<p> {{ latest_post.post_body }} </p>
+
+{% for image_path in photos %}
+    <img src="{% static 'images/'|add:image_path %}"  alt="Image">
+{% endfor %}
+

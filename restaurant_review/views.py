@@ -1,71 +1,64 @@
-from django.db.models import Avg, Count
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+import os
 
-from restaurant_review.models import Restaurant, Review
+from django.http import HttpResponse
+from django.shortcuts import render
 
-# Create your views here.
+from .models import Post
 
-def index(request):
-    print('Request for index page received')
-    restaurants = Restaurant.objects.annotate(avg_rating=Avg('review__rating')).annotate(review_count=Count('review'))
-    return render(request, 'restaurant_review/index.html', {'restaurants': restaurants})
+def individual_post_page(request, post_id):
+
+    # get photo
+    # find the right directory using post id
+
+    # grab all images
+    top_level_dir = "static/images"
+
+    photos_filepaths = []
+    for dir_name in os.listdir(top_level_dir):
+        print(dir_name, post_id, "id is second")
+        if dir_name == str(post_id) and os.path.isdir(os.path.join(top_level_dir, dir_name)):
+            print(post_id, "post id")
+            selected_dir = os.path.join(top_level_dir, dir_name)
+            files = os.listdir(selected_dir)
+
+            for photo in files:
+
+                full_path = os.path.normpath(os.path.join(selected_dir, photo)) # normpath fixes a weird error where
+                photos_filepaths.append(f"{post_id}/" + photo)
+
+            break
+        else:
+            print("Directory 1 not found")
+
+    print(photos_filepaths)
+
+    # pass a list of those photos to the context
+    latest_post = Post.objects.get(id=post_id)
+
+    context = {'latest_post': latest_post, 'photos': photos_filepaths}
+    print(latest_post.id)
+    print(context)
+    return render(request, 'restaurant_review/individual_post.html', context)
+
+def detail(request, post_id):
+    return HttpResponse("You're looking at post %s." % post_id)
+
+def display_all_posts(request):
+
+    # select all from database
+
+    # sort by date desc
+
+    posts = Post.objects.order_by('-pub_date')
+    context = {'all_posts': posts}
+
+    return render(request, 'restaurant_review/index.html', context)
 
 
-def details(request, id):
-    print('Request for restaurant details page received')
-    restaurant = get_object_or_404(Restaurant, pk=id)
-    return render(request, 'restaurant_review/details.html', {'restaurant': restaurant})
+    # for post in posts
 
+    # add them to a list
 
-def create_restaurant(request):
-    print('Request for add restaurant page received')
-    return render(request, 'restaurant_review/create_restaurant.html')
+    # send the list as context
+    pass
 
-
-@csrf_exempt
-def add_restaurant(request):
-    try:
-        name = request.POST['restaurant_name']
-        street_address = request.POST['street_address']
-        description = request.POST['description']
-    except (KeyError):
-        # Redisplay the form
-        return render(request, 'restaurant_review/add_restaurant.html', {
-            'error_message': "You must include a restaurant name, address, and description",
-        })
-    else:
-        restaurant = Restaurant()
-        restaurant.name = name
-        restaurant.street_address = street_address
-        restaurant.description = description
-        Restaurant.save(restaurant)
-
-        return HttpResponseRedirect(reverse('details', args=(restaurant.id,)))
-
-
-@csrf_exempt
-def add_review(request, id):
-    restaurant = get_object_or_404(Restaurant, pk=id)
-    try:
-        user_name = request.POST['user_name']
-        rating = request.POST['rating']
-        review_text = request.POST['review_text']
-    except (KeyError):
-        # Redisplay the form.
-        return render(request, 'restaurant_review/add_review.html', {
-            'error_message': "Error adding review",
-        })
-    else:
-        review = Review()
-        review.restaurant = restaurant
-        review.review_date = timezone.now()
-        review.user_name = user_name
-        review.rating = rating
-        review.review_text = review_text
-        Review.save(review)
-
-    return HttpResponseRedirect(reverse('details', args=(id,)))
